@@ -1,0 +1,147 @@
+#!/usr/bin/env node
+var fs = require('fs');
+var http = require('http');
+
+//helper function to replace string characters.
+String.prototype.replaceAt=function(index, character) {
+  return this.substr(0, index) + character + this.substr(index+character.length);
+}
+
+//handle filenames
+var commandLineArguments = process.argv.slice(2);
+var outputFileName = commandLineArguments[1];
+
+//utility objects
+var map, coordinates = [];
+
+function writeFile(data) {
+  fs.writeFile(outputFileName, data, function(err) {
+      if(err) {
+          return console.log(err);
+      }
+
+      console.log("The file was saved!");
+  });
+}
+
+//recursive drawing method
+function draw(currentPair, remaining) {
+
+  if (!remaining.length) {
+    return writeFile(map.join("\n"));
+  }
+
+  var nextPair = remaining[0];
+
+  var row = currentPair[0],
+      col = currentPair[1];
+
+  var nextRow = nextPair[0],
+      nextCol = nextPair[1];
+
+  //helper function for column checking
+  var index;
+  function checkColumns() {
+    for (var i = 0; i < remaining.length; i++) {
+      if (col === remaining[i][1]) {
+        console.log("two points on same column!");
+
+        index = i;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  //helper function for row checking
+  var rowIndex;
+  function checkRows() {
+    for (var j = 0; j < remaining.length; j++) {
+      if (row === remaining[j][0]) {
+        console.log("two points on same row!")
+
+        rowIndex = j;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  //check for coordinates with the same column
+  if (checkColumns()) {
+    for (var j = row+1; j < remaining[index][0]; j++) {
+      map[j] = map[j].replaceAt(col, "*");
+    }
+
+    //remove coordinate used and recurse
+    remaining.splice(index, 1);
+    draw(remaining[index], remaining);
+
+  }
+
+  //check for coordinates on same row
+  else if (checkRows()) {
+    for (var i = col + 1; i < remaining[rowIndex][1]; i++) {
+      map[row] = map[row].replaceAt(i, "*");
+    }
+
+    //remove coordinate used and recurse
+    remaining.splice(rowIndex, 1);
+    draw(remaining[rowIndex], remaining);
+  }
+
+  //connect coordinates with a change of direction
+  else {
+
+    //calculate differences and account for direction.
+    //Draw vertically
+    if (row - nextRow > 0) {
+      for (var i = row; i > nextRow; i--) {
+        map[i] = map[i].replaceAt(col, "*");
+      }
+    }
+    else {
+      for (var i = row + 1; i <= nextRow; i++) {
+        map[i] = map[i].replaceAt(col, "*");
+      }
+    }
+
+    //Draw Horizontally
+    if (col - nextCol > 0) {
+      for (var j = nextCol + 1; j < col; j++) {
+        map[nextRow] = map[nextRow].replaceAt(j, "*");
+      }
+    }
+    else {
+      for (var j = col; j < nextCol; j++) {
+        map[nextRow] = map[nextRow].replaceAt(j, "*");
+      }
+    }
+
+    //remove coordinate used and recurse
+    draw(remaining[0], remaining.slice(1));
+  }
+};
+
+fs.readFile('./' + commandLineArguments[0], 'utf8', function (err,data) {
+  if (err) {
+    return console.log(err);
+  }
+
+  //create map of coordinates and strings
+  map = data.split('\n');
+  data.split('\n').map(function (row, r) {
+    return row.split("").forEach(function (e, c) {
+      if (e === '#') {
+        coordinates.push([r,c]);
+      }
+    });
+  });
+
+  //recursive kickoff
+  draw(coordinates[0], coordinates.slice(1));
+});
+
+
+
+
